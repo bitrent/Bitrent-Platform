@@ -15,4 +15,14 @@
 * Building dismantling By the aid of sensors it’s possible to follow where goes construction debris after the building dismantlement and make sure that waste is utilized according to green standards. 
 ## Design
 ## Glossary 
-Project - a node in the blockchain that contains links to all documentation (BIM, other), also a smart contract which regulates processes is attached to it. In UI it is represented by a separate page.  Building catalog - the list of all projects that are registered in the system. Progress statement - the report on construction delivery.  Project evaluation - the rating which is given by Experts (see 2.2 Experts) to a project, Is formed by the scoring project characteristics using set of criterias which are implemented into the system.
+Project - a node in the blockchain that contains links to all documentation (BIM, other), also a smart contract which regulates processes is attached to it. In UI it is represented by a separate page.  Building catalog - the list of all projects that are registered in the system. Progress statement - the report on construction delivery.  Project evaluation - the rating which is given by Experts (see 2.2 Experts) to a project, Is formed by the scoring project characteristics using set of criterias which are implemented into the system.
+
+## More information
+
+* [BIM models to visualize construction progress](https://github.com/bitrent/Bitrent-Platform/blob/master/BIM%20models%20to%20visualize%20construction%20progress.pdf)
+
+* [Placement logic of construction objects on BitRent platform](https://github.com/bitrent/Bitrent-Platform/blob/master/Placement%20logic%20of%20construction%20objects%20on%20BitRent%20platform.pdf)
+
+* [Real-time construction monitoring with RFID tags](https://github.com/bitrent/Bitrent-Platform/blob/master/Real-time%20construction%20monitoring%20with%20RFID%20tags.pdf)
+
+* [Smart contracts in the Bitrent](https://github.com/bitrent/Bitrent-Platform/blob/master/Smart%20contracts%20in%20the%C2%A0Bitrent.pdf)
