@@ -1,0 +1,24 @@
+version: '3.3'
+services:
+
+  ethernode:
+    environment:
+      LOG_LEVEL: 2
+    ports:
+      - 127.0.0.1:8545:8545
+    entrypoint: "/root/rinkeby.sh"
+
+  truffle:
+    build: ./truffle
+    #stdin_open: true
+    tty: true
+    environment:
+      HOST: ethernode
+    links:
+      - ethernode
+    volumes:
+      - ./truffle/app:/usr/src/app
+    logging:
+      options:
+        max-size: 1000m
+    restart: "no"

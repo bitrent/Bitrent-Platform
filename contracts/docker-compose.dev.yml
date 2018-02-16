@@ -1,0 +1,42 @@
+version: '3.3'
+services:
+
+  ethernode:
+    environment:
+      LOG_LEVEL: 3
+      DELETE_OLD_BLOCKCHAIN: 0
+    ports:
+      - 8545:8545
+    entrypoint: "/root/devnet.sh"
+
+  truffle:
+    build: ./truffle
+    #stdin_open: true
+    tty: true
+    environment:
+      HOST: ethernode
+    links:
+      - ethernode
+    volumes:
+      - ./truffle/app:/usr/src/app
+    logging:
+      options:
+        max-size: 1000m
+    restart: "no"
+
+  ethereum-bridge:
+    build: ./ethereum-bridge
+    #stdin_open: true
+    tty: true
+    environment:
+      HOST: ethernode
+    links:
+      - ethernode
+      - truffle
+    volumes:
+      - ./data/ethereum-bridge/config:/usr/src/app/ethereum-bridge/config/instance
+      - ./data/ethereum-bridge/database:/usr/src/app/ethereum-bridge/database
+    logging:
+      options:
+        max-size: 1000m
+    restart: "no"

@@ -1,0 +1,22 @@
+# IntelliJ project files
+.idea
+*.iml
+out
+gen
+.DS_Store
+
+/build
+/package-lock.json
+/geth.log
+/node_modules
+ethernode/rinkeby/password
+data/ethernode/
+!data/ethernode/.gitkeep
+data/truffle/
+!data/truffle/.gitkeep
+!data/truffle/dist/.gitkeep
+data/ethereum-bridge/
+!data/ethereum-bridge/.gitkeep
+ethereum-bridge/config/oracle_instance_*.json
+truffle/app/dist
+truffle/app/build

@@ -1,0 +1,8 @@
+version: '3.3'
+services:
+
+  ethernode:
+    environment:
+     LOG_LEVEL: 2
+    entrypoint: "/root/main.sh"
+    restart: unless-stopped
