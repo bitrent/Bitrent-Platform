@@ -3,7 +3,7 @@
 set -e
 
 declare VERBOSITY=${LOG_LEVEL:=1};
-declare DELETE_OLD_BLOCKCHAIN=${DELETE_OLD_BLOCKCHAIN:=1};
+declare DELETE_OLD_BLOCKCHAIN=${DELETE_OLD_BLOCKCHAIN:=0};
 declare START_MINING=${MINING:=0};
 declare GETH_OPTS;
 
@@ -36,7 +36,7 @@ geth \
   --keystore "/root/devnet/keystore" \
   --ipcpath "/root/geth_ipc/geth.ipc" \
   --maxpeers 0 \
-  --rpc --rpcaddr 0.0.0.0 --rpcapi "db,eth,net,web3,personal" --rpccorsdomain "*" \
+  --rpc --rpcaddr 0.0.0.0 --rpcapi "db,eth,net,web3,personal" --rpccorsdomain "*" --rpcvhosts "*" \
   --jspath "/root/devnet/" \
   --preload "preload.js" \
   --password "/root/devnet/password" \

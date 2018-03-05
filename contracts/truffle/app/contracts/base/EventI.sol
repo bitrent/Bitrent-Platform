@@ -1,5 +1,7 @@
 pragma solidity ^0.4.18;
-
+/**
+ * @author Emil Dudnyk
+ */
 contract EventI {
 
   event Log (address whoCalled, string eventName, address contributor);

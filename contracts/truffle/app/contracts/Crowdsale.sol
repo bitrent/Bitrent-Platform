@@ -19,12 +19,14 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
   ConvertQuote convert;
   Registry registry;
 
-  enum SaleState  { NEW, SALE, ENDED, REFUND }
+  enum SaleState  {NEW, SALE, ENDED, REFUND}
 
-  // minimum goal ETH
+  // minimum goal USD
   uint public softCap;
-  // maximum goal ETH
+  // maximum goal USD
   uint public hardCap;
+  // maximum goal UNT
+  uint public hardCapToken;
 
   // start and end timestamps where investments are allowed
   uint public startDate;
@@ -41,12 +43,12 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
   // total token sales
   uint private totalTokens;
   // how many tokens sent to investors
-  uint private withdrawedTokens;
+  uint public withdrawedTokens;
   // minimum ETH investment amount
   uint public minimalContribution;
 
   bool releasedTokens;
-  BuildingStatus statusI;
+  BuildingStatus public statusI;
 
   PermissionManager public permissionManager;
 
@@ -69,7 +71,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
   event ContributionAddedManual(address contrib, uint amount, uint amusd, uint tokens, uint ethusdrate);
   event ContributionEdit(address contrib, uint amount, uint amusd, uint tokens, uint ethusdrate);
   event ContributionRemoved(address contrib, uint amount, uint amusd, uint tokens);
-  event TokensTransfered(address contributor , uint amount);
+  event TokensTransfered(address contributor, uint amount);
   event Refunded(address ref, uint amount);
   event ErrorSendingETH(address to, uint amount);
   event WithdrawedEthToHold(uint amount);
@@ -80,12 +82,13 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
   event ChangeMinAmount(uint oldMinAmount, uint minAmount);
   event ChangePreSale(address preSale);
   event ChangeTokenUSDRate(uint oldTokenUSDRate, uint tokenUSDRate);
+  event ChangeHardCapToken(uint oldHardCapToken, uint newHardCapToken);
   event SoftCapChanged();
   event HardCapChanged();
 
   modifier onlyPermitted() {
-      require(permissionManager.isPermitted(msg.sender) || msg.sender == owner);
-      _;
+    require(permissionManager.isPermitted(msg.sender) || msg.sender == owner);
+    _;
   }
 
   function Crowdsale(
@@ -102,7 +105,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     token = UnityToken(tokenAddress);
     permissionManager = PermissionManager(_permissionManager);
     state = SaleState.NEW;
-    
+
     startDate = start;
     endDate = end;
     minimalContribution = 0.3 * 1 ether;
@@ -111,12 +114,12 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
 
     softCap = _softCap * 1 ether;
     hardCap = _hardCap * 1 ether;
+    hardCapToken = 100000 * 1 ether;
 
     ethUsdPrice = _ethUsdPrice;
 
     hold = Hold(holdCont);
     registry = Registry(registryAddress);
-    
   }
 
 
@@ -173,31 +176,49 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     startDate = date;
     ManualChangeStartDate(oldStartDate, date);
   }
+
   function setEndDate(uint date) public onlyOwner {
     uint oldEndDate = endDate;
     endDate = date;
     ManualChangeEndDate(oldEndDate, date);
   }
+
   function setSoftCap(uint _softCap) public onlyOwner {
     softCap = _softCap * 1 ether;
     SoftCapChanged();
   }
+
   function setHardCap(uint _hardCap) public onlyOwner {
     hardCap = _hardCap * 1 ether;
     HardCapChanged();
   }
+
   function setMinimalContribution(uint minimumAmount) public onlyOwner {
     uint oldMinAmount = minimalContribution;
     minimalContribution = minimumAmount;
     ChangeMinAmount(oldMinAmount, minimalContribution);
   }
 
+  function setHardCapToken(uint _hardCapToken) public onlyOwner {
+    require(_hardCapToken > 1 ether); // > 1 UNT
+    uint oldHardCapToken = _hardCapToken;
+    hardCapToken = _hardCapToken;
+    ChangeHardCapToken(oldHardCapToken, hardCapToken);
+  }
+
   /* The function without name is the default function that is called whenever anyone sends funds to a contract */
   function() whenNotPaused public payable {
-    require(msg.value != 0);
     require(state == SaleState.SALE);
-    checkCrowdsaleState(msg.value);
-    processTransaction(msg.sender, msg.value);
+    require(now >= startDate);
+    require(msg.value >= minimalContribution);
+
+    bool ckeck = checkCrowdsaleState(msg.value);
+
+    if(ckeck) {
+      processTransaction(msg.sender, msg.value);
+    } else {
+      msg.sender.transfer(msg.value);
+    }
   }
 
   /**
@@ -208,47 +229,83 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     uint usd = _amount.mul(ethUsdPrice);
     if (usdRaised.add(usd) >= hardCap) {
       state = SaleState.ENDED;
-      HardCapReached(block.number); // Close the crowdsale
+      statusI.setStatus(BuildingStatus.statusEnum.preparation_works);
+      HardCapReached(block.number);
       CrowdsaleEnded(block.number);
+      return true;
     }
 
     if (now > endDate) {
       if (usdRaised.add(usd) >= softCap) {
-          state = SaleState.ENDED;
-          statusI.setStatus(BuildingStatus.statusEnum.preparation_works);
-          CrowdsaleEnded(block.number);
+        state = SaleState.ENDED;
+        statusI.setStatus(BuildingStatus.statusEnum.preparation_works);
+        CrowdsaleEnded(block.number);
+        return false;
       } else {
-          state = SaleState.REFUND;   
-          statusI.setStatus(BuildingStatus.statusEnum.refund);
-          CrowdsaleEnded(block.number);
+        state = SaleState.REFUND;
+        statusI.setStatus(BuildingStatus.statusEnum.refund);
+        CrowdsaleEnded(block.number);
+        return false;
       }
     }
+    return true;
   }
 
   /**
-   * @dev Token purchase
-   */
+ * @dev Token purchase
+ */
   function processTransaction(address _contributor, uint _amount) internal {
 
     require(msg.value >= minimalContribution);
 
-    // get tokens from eth Usd msg.value * ethUsdPrice / tokenUSDRate
-    // 1 ETH * 835,92$ / 386.61 = 2162178940017071467 wei =
+    uint maxContribution = calculateMaxContributionUsd();
+    uint contributionAmountUsd = _amount.mul(ethUsdPrice);
+    uint contributionAmountETH = _amount;
 
-    uint usd = _amount.mul(ethUsdPrice);
-    uint tokens = _amount.mul(ethUsdPrice).div(tokenUSDRate);
+    uint returnAmountETH = 0;
 
-    if (usdRaised + usd >= softCap && softCap > usdRaised) {
+    if (maxContribution < contributionAmountUsd) {
+      contributionAmountUsd = maxContribution;
+      uint returnAmountUsd = _amount.mul(ethUsdPrice) - maxContribution;
+      returnAmountETH = contributionAmountETH - returnAmountUsd.div(ethUsdPrice);
+      contributionAmountETH = contributionAmountETH.sub(returnAmountETH);
+    }
+
+    if (usdRaised + contributionAmountUsd >= softCap && softCap > usdRaised) {
       SoftCapReached(block.number);
     }
 
-    usdRaised += usd;
+    // get tokens from eth Usd msg.value * ethUsdPrice / tokenUSDRate
+    // 1 ETH * 860 $ / 445 $ = 193258426966292160 wei = 1.93 UNT
+    uint tokens = contributionAmountUsd.div(tokenUSDRate);
 
-    registry.addContribution(_contributor, _amount, usd, tokens, ethUsdPrice);
-    ethRaised += _amount;
-    totalTokens += tokens;
-    ContributionAdded(_contributor, _amount, usd, tokens, ethUsdPrice);
+    if(totalTokens + tokens > hardCapToken) {
+      _contributor.transfer(_amount);
+    } else {
+      if (tokens > 0) {
+        registry.addContribution(_contributor, contributionAmountETH, contributionAmountUsd, tokens, ethUsdPrice);
+        ethRaised += contributionAmountETH;
+        totalTokens += tokens;
+        usdRaised += contributionAmountUsd;
+        ContributionAdded(_contributor, contributionAmountETH, contributionAmountUsd, tokens, ethUsdPrice);
+      }
+    }
 
+    if (returnAmountETH != 0) {
+      _contributor.transfer(returnAmountETH);
+    }
+  }
+
+  /**
+   * @dev It is necessary for a correct change of status in the event of completion of the campaign.
+   * @param _stateChanged if true transfer ETH back
+   */
+  function refundTransaction(bool _stateChanged) internal {
+    if (_stateChanged) {
+      msg.sender.transfer(msg.value);
+    } else{
+      revert();
+    }
   }
 
   function getTokensIssued() public view returns (uint) {
@@ -263,6 +320,18 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     return usdRaised;
   }
 
+  function calculateMaxContributionUsd() public constant returns (uint) {
+    return hardCap - usdRaised;
+  }
+
+  function calculateMaxTokensIssued() public constant returns (uint) {
+    return hardCapToken - totalTokens;
+  }
+
+  function calculateMaxEthIssued() public constant returns (uint) {
+    return hardCap.mul(ethUsdPrice) - usdRaised.mul(ethUsdPrice);
+  }
+
   function getEthRaised() public view returns (uint) {
     return ethRaised;
   }
@@ -271,37 +340,39 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     return token.balanceOf(this);
   }
 
-  function getContributorTokens(address contrib) public view returns(uint) {
+  function getContributorTokens(address contrib) public view returns (uint) {
     return registry.getContributionTokens(contrib);
   }
 
-  function getContributorETH(address contrib) public view returns(uint) {
+  function getContributorETH(address contrib) public view returns (uint) {
     return registry.getContributionETH(contrib);
   }
 
-  function getContributorUSD(address contrib) public view returns(uint) {
+  function getContributorUSD(address contrib) public view returns (uint) {
     return registry.getContributionUSD(contrib);
   }
 
   function batchReturnUNT(uint _numberOfReturns) public onlyOwner whenNotPaused {
+    require((now > endDate && usdRaised >= softCap )  || ( usdRaised >= hardCap)  );
     require(state == SaleState.ENDED);
+    require(_numberOfReturns > 0);
 
     address currentParticipantAddress;
-    uint tokensCount;
 
     for (uint cnt = 0; cnt < _numberOfReturns; cnt++) {
       currentParticipantAddress = registry.getContributorByIndex(nextContributorToTransferTokens);
-      if (currentParticipantAddress == 0x0) 
+      if (currentParticipantAddress == 0x0)
         return;
 
       if (!hasWithdrawedTokens[currentParticipantAddress] && registry.isActiveContributor(currentParticipantAddress)) {
 
         uint numberOfUNT = registry.getContributionTokens(currentParticipantAddress);
-       
-        token.transfer(currentParticipantAddress, numberOfUNT);
-        TokensTransfered(currentParticipantAddress, numberOfUNT);
-        withdrawedTokens += tokensCount;
-        hasWithdrawedTokens[currentParticipantAddress] = true;
+
+        if(token.transfer(currentParticipantAddress, numberOfUNT)) {
+          TokensTransfered(currentParticipantAddress, numberOfUNT);
+          withdrawedTokens += numberOfUNT;
+          hasWithdrawedTokens[currentParticipantAddress] = true;
+        }
       }
 
       nextContributorToTransferTokens += 1;
@@ -309,19 +380,47 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
 
   }
 
+  function getTokens() public whenNotPaused {
+    require((now > endDate && usdRaised >= softCap )  || ( usdRaised >= hardCap)  );
+    require(state == SaleState.ENDED);
+    require(!hasWithdrawedTokens[msg.sender] && registry.isActiveContributor(msg.sender));
+    require(getTokenBalance() >= registry.getContributionTokens(msg.sender));
+
+    uint numberOfUNT = registry.getContributionTokens(msg.sender);
+
+    if(token.transfer(msg.sender, numberOfUNT)) {
+      TokensTransfered(msg.sender, numberOfUNT);
+      withdrawedTokens += numberOfUNT;
+      hasWithdrawedTokens[msg.sender] = true;
+    }
+
+  }
+
+  function getOverTokens() public onlyOwner {
+    require(checkBalanceContract() > (totalTokens - withdrawedTokens));
+    uint balance = checkBalanceContract() - (totalTokens - withdrawedTokens);
+    if(balance > 0) {
+      if(token.transfer(msg.sender, balance)) {
+        TokensTransfered(msg.sender,  balance);
+      }
+    }
+  }
+
   /**
    * @dev if crowdsale is unsuccessful, investors can claim refunds here
    */
   function refund() public whenNotPaused {
     require(state == SaleState.REFUND);
+    require(registry.getContributionETH(msg.sender) > 0);
+    require(!hasRefunded[msg.sender]);
 
     uint ethContributed = registry.getContributionETH(msg.sender);
     if (!msg.sender.send(ethContributed)) {
       ErrorSendingETH(msg.sender, ethContributed);
+    } else {
+      hasRefunded[msg.sender] = true;
+      Refunded(msg.sender, ethContributed);
     }
-     
-    hasRefunded[msg.sender] = true;
-    Refunded(msg.sender, ethContributed);
   }
 
   /**
@@ -376,15 +475,15 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     return endDate;
   }
 
-  function getContributorAmount() public view returns(uint) {
+  function getContributorAmount() public view returns (uint) {
     return registry.getContributorAmount();
   }
 
-  function getWithdrawed(address contrib) public view returns(bool) {
+  function getWithdrawed(address contrib) public view returns (bool) {
     return hasWithdrawedTokens[contrib];
   }
 
-  function getRefunded(address contrib) public view returns(bool) {
+  function getRefunded(address contrib) public view returns (bool) {
     return hasRefunded[contrib];
   }
 
@@ -401,7 +500,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     ethRaised -= registry.getContributionETH(_contributor);
     usdRaised -= registry.getContributionUSD(_contributor);
     totalTokens -= registry.getContributionTokens(_contributor);
-    
+
     registry.editContribution(_contributor, _amount, _amusd, _tokens, _quote);
     ethRaised += _amount;
     usdRaised += _amusd;

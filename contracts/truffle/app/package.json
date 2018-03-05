@@ -17,6 +17,7 @@
     "global": "^4.3.2",
     "moment": "^2.20.1",
     "ethereumjs-abi": "^0.6.5",
-    "lodash": "^4.17.5"
+    "lodash": "^4.17.5",
+    "node-fetch": "^2.0.0"
   }
 }

@@ -1,5 +1,7 @@
 pragma solidity ^0.4.18;
-
+/**
+ * @author Emil Dudnyk
+ */
 contract ETHPriceWatcher {
   address public ethPriceProvider;
 

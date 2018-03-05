@@ -4,7 +4,6 @@ import './UnityToken.sol';
 import './base/Ownable.sol';
 import './base/PermissionManager.sol';
 import './Registry.sol';
-import './Observer.sol';
 
 /**
  * @title Hold  contract.
@@ -18,12 +17,12 @@ contract Hold is Ownable {
     uint public initialBalance;
     uint public withdrawed;
     
-    address multisig;
+    address public multisig;
     Registry registry;
 
-    PermissionManager permissionManager;
+    PermissionManager public permissionManager;
     uint nextContributorToTransferEth;
-    Observer observer;
+    address public observer;
     uint dateDeployed;
     mapping(address => bool) private hasWithdrawedEth;
 
@@ -39,7 +38,7 @@ contract Hold is Ownable {
     }
 
     modifier onlyObserver() {
-        require(msg.sender == address(observer));
+        require(msg.sender == observer || msg.sender == owner);
         _;
     }
 
@@ -51,7 +50,7 @@ contract Hold is Ownable {
         dateDeployed = now;
         permissionManager = PermissionManager(pm);
         registry = Registry(registryAddress);
-        observer = Observer(observerAddr);
+        observer = observerAddr;
     }
 
     function setPermissionManager(address _permadr) public onlyOwner {
@@ -60,7 +59,8 @@ contract Hold is Ownable {
     }
 
     function setObserver(address observerAddr) public onlyOwner {
-        observer = Observer(observerAddr);
+        require(observerAddr != 0x0);
+        observer = observerAddr;
     }
 
     function setInitialBalance(uint inBal) public {
@@ -70,6 +70,7 @@ contract Hold is Ownable {
 
     function releaseAllETH() onlyPermitted public {
         uint balReleased = getBalanceReleased();
+        require(balReleased > 0);
         require(this.balance >= balReleased);
         multisig.transfer(balReleased);
         withdrawed += balReleased;
@@ -114,7 +115,8 @@ contract Hold is Ownable {
         EthReturnedToOwner(owner, balance);
     }
 
-    function refund(uint _numberOfReturns) public onlyPermitted {
+    function refund(uint _numberOfReturns) public onlyOwner {
+        require(_numberOfReturns > 0);
         address currentParticipantAddress;
 
         for (uint cnt = 0; cnt < _numberOfReturns; cnt++) {
@@ -138,4 +140,8 @@ contract Hold is Ownable {
     function() public payable {
 
     }
+
+  function getWithdrawed(address contrib) public onlyPermitted view returns (bool) {
+    return hasWithdrawedEth[contrib];
+  }
 }
