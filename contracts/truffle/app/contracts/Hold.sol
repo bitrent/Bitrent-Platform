@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import './UnityToken.sol';
 import './base/Ownable.sol';
@@ -65,35 +65,35 @@ contract Hold is Ownable {
 
     function setInitialBalance(uint inBal) public {
         initialBalance = inBal;
-        InitialBalanceChanged(inBal);
+        emit InitialBalanceChanged(inBal);
     }
 
     function releaseAllETH() onlyPermitted public {
         uint balReleased = getBalanceReleased();
         require(balReleased > 0);
-        require(this.balance >= balReleased);
+        require(address(this).balance >= balReleased);
         multisig.transfer(balReleased);
         withdrawed += balReleased;
-        EthReleased(balReleased);
+        emit EthReleased(balReleased);
     }
 
     function releaseETH(uint n) onlyPermitted public {
-        require(this.balance >= n);
+        require(address(this).balance >= n);
         require(getBalanceReleased() >= n);
         multisig.transfer(n);
         withdrawed += n;
-        EthReleased(n);
+        emit EthReleased(n);
     } 
 
     function getBalance() public view returns (uint) {
-        return this.balance;
+        return address(this).balance;
     }
 
     function changeStageAndReleaseETH() public onlyObserver {
         uint8 newStage = currentStage + 1;
         require(newStage <= stages);
         currentStage = newStage;
-        StageChanged(newStage);
+        emit StageChanged(newStage);
         releaseAllETH();
     }
 
@@ -101,7 +101,7 @@ contract Hold is Ownable {
         uint8 newStage = currentStage + 1;
         require(newStage <= stages);
         currentStage = newStage;
-        StageChanged(newStage);
+        emit StageChanged(newStage);
     }
 
     function getBalanceReleased() public view returns (uint) {
@@ -112,7 +112,7 @@ contract Hold is Ownable {
         require(now > dateDeployed + 183 days);
         uint balance = getBalance();
         owner.transfer(getBalance());
-        EthReturnedToOwner(owner, balance);
+        emit EthReturnedToOwner(owner, balance);
     }
 
     function refund(uint _numberOfReturns) public onlyOwner {
@@ -129,7 +129,7 @@ contract Hold is Ownable {
                 EthAmount -=  EthAmount * (percentage / 100 * currentStage);
 
                 currentParticipantAddress.transfer(EthAmount);
-                EthRefunded(currentParticipantAddress, EthAmount);
+                emit EthRefunded(currentParticipantAddress, EthAmount);
                 hasWithdrawedEth[currentParticipantAddress] = true;
             }
             nextContributorToTransferEth += 1;

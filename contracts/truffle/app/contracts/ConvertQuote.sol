@@ -1,10 +1,11 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.19;
 
 import './lib/SafeMath.sol';
 import './base/OraclizeC.sol';
 import './base/ETHPriceWatcher.sol';
+
 /**
- * @author Emil Dudnyk
+ * @author Vladimir Kovalchuk
  */
 contract ETHPriceProvider is OraclizeC {
   using SafeMath for uint;
@@ -13,7 +14,7 @@ contract ETHPriceProvider is OraclizeC {
 
   ETHPriceWatcher public watcher;
 
-  event LogPriceUpdated(string getPrice, uint setPrice, uint blockTimestamp);
+  event LogPriceUpdated(string getPrice, uint setPrice, uint blockTimestamp, bytes32 md);
   event LogStartUpdate(uint startingPrice, uint updateInterval, uint blockTimestamp);
 
   function notifyWatcher() internal;
@@ -32,7 +33,7 @@ contract ETHPriceProvider is OraclizeC {
     currentPrice = startingPrice;
     update(updateInterval);
     notifyWatcher();
-    LogStartUpdate(startingPrice, updateInterval, block.timestamp);
+    emit LogStartUpdate(startingPrice, updateInterval, block.timestamp);
   }
 
   function stopUpdate() external onlyOwner inActiveState {
@@ -44,32 +45,37 @@ contract ETHPriceProvider is OraclizeC {
     watcher = ETHPriceWatcher(newWatcher);
   }
 
-  function __callback(bytes32 myid, string result) public {
-    require(msg.sender == oraclize_cbAddress() && validIds[myid]);
-    delete validIds[myid];
-
+  function __callback(bytes32 myid, string result) public   {
+    //require(msg.sender == oraclize_cbAddress());
     uint newPrice = parseInt(result, 2);
-
+    currentPrice = newPrice;
     if (state == State.Active) {
       update(updateInterval);
     }
-
-    require(newPrice > 0);
-
-    currentPrice = newPrice;
-
     notifyWatcher();
-    LogPriceUpdated(result,newPrice,block.timestamp);
+    emit LogPriceUpdated(result,newPrice,block.timestamp, myid);
+  }
+
+  function __callback(bytes32 myid, string result, bytes proof) public   {
+    //require(msg.sender == oraclize_cbAddress());
+    uint newPrice = parseInt(result, 2);
+    currentPrice = newPrice;
+    if (state == State.Active) {
+      update(updateInterval);
+    }
+    notifyWatcher();
+    emit LogPriceUpdated(result,newPrice,block.timestamp, myid);
+    proof;
   }
 
   function update(uint delay) private {
-    if (oraclize_getPrice("URL") > this.balance) {
+    if (oraclize_getPrice("URL") > address(this).balance) {
       //stop if we don't have enough funds anymore
       state = State.Stopped;
-      LogOraclizeQuery("Oraclize query was NOT sent", this.balance,block.timestamp);
+      emit LogOraclizeQuery("Oraclize query was NOT sent", address(this).balance,block.timestamp);
     } else {
-      bytes32 queryId = oraclize_query(delay, "URL", url, gasLimit);
-      validIds[queryId] = true;
+     oraclize_query(delay, "URL", url, gasLimit);
+
     }
   }
 
@@ -81,7 +87,7 @@ contract ETHPriceProvider is OraclizeC {
 
 contract ConvertQuote is ETHPriceProvider {
   //Encrypted Query
-  function ConvertQuote(uint _currentPrice) ETHPriceProvider("BIa/Nnj1+ipZBrrLIgpTsI6ukQTlTJMd1c0iC7zvxx+nZzq9ODgBSmCLo3Zc0sYZwD8mlruAi5DblQvt2cGsfVeCyqaxu+1lWD325kgN6o0LxrOUW9OQWn2COB3TzcRL51Q+ZLBsT955S1OJbOqsfQ4gg/l2awe2EFVuO3WTprvwKhAa8tjl2iPYU/AJ83TVP9Kpz+ugTJumlz2Y6SPBGMNcvBoRq3MlnrR2h/XdqPbh3S2bxjbSTLwyZzu2DAgVtybPO1oJETY=") payable public {
+  function ConvertQuote(uint _currentPrice) ETHPriceProvider("json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0") payable public {
     currentPrice = _currentPrice;
   }
 

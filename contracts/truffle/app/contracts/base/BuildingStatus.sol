@@ -61,7 +61,7 @@ contract BuildingStatus is Ownable {
 
   function setStatus(statusEnum newStatus) onlyCrowdsale  public {
       status = newStatus;
-      StatusChanged(newStatus);
+      emit StatusChanged(newStatus);
   }
 
   function changeStage(uint8 stage) public onlyObserver {

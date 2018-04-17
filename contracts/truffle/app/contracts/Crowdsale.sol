@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import './UnityToken.sol';
 import './base/Pausable.sol';
@@ -138,7 +138,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     require(_tokenUSDRate > 0);
     uint oldTokenUSDRate = tokenUSDRate;
     tokenUSDRate = _tokenUSDRate;
-    ChangeTokenUSDRate(oldTokenUSDRate, _tokenUSDRate);
+    emit ChangeTokenUSDRate(oldTokenUSDRate, _tokenUSDRate);
   }
 
   function getTokenUSDRate() public view returns (uint) {
@@ -174,36 +174,36 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
   function setStartDate(uint date) public onlyOwner {
     uint oldStartDate = startDate;
     startDate = date;
-    ManualChangeStartDate(oldStartDate, date);
+    emit ManualChangeStartDate(oldStartDate, date);
   }
 
   function setEndDate(uint date) public onlyOwner {
     uint oldEndDate = endDate;
     endDate = date;
-    ManualChangeEndDate(oldEndDate, date);
+    emit ManualChangeEndDate(oldEndDate, date);
   }
 
   function setSoftCap(uint _softCap) public onlyOwner {
     softCap = _softCap * 1 ether;
-    SoftCapChanged();
+    emit SoftCapChanged();
   }
 
   function setHardCap(uint _hardCap) public onlyOwner {
     hardCap = _hardCap * 1 ether;
-    HardCapChanged();
+    emit HardCapChanged();
   }
 
   function setMinimalContribution(uint minimumAmount) public onlyOwner {
     uint oldMinAmount = minimalContribution;
     minimalContribution = minimumAmount;
-    ChangeMinAmount(oldMinAmount, minimalContribution);
+    emit ChangeMinAmount(oldMinAmount, minimalContribution);
   }
 
   function setHardCapToken(uint _hardCapToken) public onlyOwner {
     require(_hardCapToken > 1 ether); // > 1 UNT
     uint oldHardCapToken = _hardCapToken;
     hardCapToken = _hardCapToken;
-    ChangeHardCapToken(oldHardCapToken, hardCapToken);
+    emit ChangeHardCapToken(oldHardCapToken, hardCapToken);
   }
 
   /* The function without name is the default function that is called whenever anyone sends funds to a contract */
@@ -230,8 +230,8 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     if (usdRaised.add(usd) >= hardCap) {
       state = SaleState.ENDED;
       statusI.setStatus(BuildingStatus.statusEnum.preparation_works);
-      HardCapReached(block.number);
-      CrowdsaleEnded(block.number);
+      emit HardCapReached(block.number);
+      emit CrowdsaleEnded(block.number);
       return true;
     }
 
@@ -239,12 +239,12 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
       if (usdRaised.add(usd) >= softCap) {
         state = SaleState.ENDED;
         statusI.setStatus(BuildingStatus.statusEnum.preparation_works);
-        CrowdsaleEnded(block.number);
+        emit CrowdsaleEnded(block.number);
         return false;
       } else {
         state = SaleState.REFUND;
         statusI.setStatus(BuildingStatus.statusEnum.refund);
-        CrowdsaleEnded(block.number);
+        emit CrowdsaleEnded(block.number);
         return false;
       }
     }
@@ -272,7 +272,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     }
 
     if (usdRaised + contributionAmountUsd >= softCap && softCap > usdRaised) {
-      SoftCapReached(block.number);
+      emit SoftCapReached(block.number);
     }
 
     // get tokens from eth Usd msg.value * ethUsdPrice / tokenUSDRate
@@ -287,7 +287,14 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
         ethRaised += contributionAmountETH;
         totalTokens += tokens;
         usdRaised += contributionAmountUsd;
-        ContributionAdded(_contributor, contributionAmountETH, contributionAmountUsd, tokens, ethUsdPrice);
+
+        if(token.transfer(msg.sender, tokens)) {
+          emit TokensTransfered(msg.sender, tokens);
+          withdrawedTokens += tokens;
+          hasWithdrawedTokens[msg.sender] = true;
+        }
+
+        emit ContributionAdded(_contributor, contributionAmountETH, contributionAmountUsd, tokens, ethUsdPrice);
       }
     }
 
@@ -352,36 +359,8 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     return registry.getContributionUSD(contrib);
   }
 
-  function batchReturnUNT(uint _numberOfReturns) public onlyOwner whenNotPaused {
-    require((now > endDate && usdRaised >= softCap )  || ( usdRaised >= hardCap)  );
-    require(state == SaleState.ENDED);
-    require(_numberOfReturns > 0);
-
-    address currentParticipantAddress;
-
-    for (uint cnt = 0; cnt < _numberOfReturns; cnt++) {
-      currentParticipantAddress = registry.getContributorByIndex(nextContributorToTransferTokens);
-      if (currentParticipantAddress == 0x0)
-        return;
-
-      if (!hasWithdrawedTokens[currentParticipantAddress] && registry.isActiveContributor(currentParticipantAddress)) {
-
-        uint numberOfUNT = registry.getContributionTokens(currentParticipantAddress);
-
-        if(token.transfer(currentParticipantAddress, numberOfUNT)) {
-          TokensTransfered(currentParticipantAddress, numberOfUNT);
-          withdrawedTokens += numberOfUNT;
-          hasWithdrawedTokens[currentParticipantAddress] = true;
-        }
-      }
-
-      nextContributorToTransferTokens += 1;
-    }
-
-  }
-
   function getTokens() public whenNotPaused {
-    require((now > endDate && usdRaised >= softCap )  || ( usdRaised >= hardCap)  );
+    require((now > endDate && usdRaised >= softCap ) || (usdRaised >= hardCap)  );
     require(state == SaleState.ENDED);
     require(!hasWithdrawedTokens[msg.sender] && registry.isActiveContributor(msg.sender));
     require(getTokenBalance() >= registry.getContributionTokens(msg.sender));
@@ -389,7 +368,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     uint numberOfUNT = registry.getContributionTokens(msg.sender);
 
     if(token.transfer(msg.sender, numberOfUNT)) {
-      TokensTransfered(msg.sender, numberOfUNT);
+      emit TokensTransfered(msg.sender, numberOfUNT);
       withdrawedTokens += numberOfUNT;
       hasWithdrawedTokens[msg.sender] = true;
     }
@@ -401,25 +380,8 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     uint balance = checkBalanceContract() - (totalTokens - withdrawedTokens);
     if(balance > 0) {
       if(token.transfer(msg.sender, balance)) {
-        TokensTransfered(msg.sender,  balance);
+        emit TokensTransfered(msg.sender,  balance);
       }
-    }
-  }
-
-  /**
-   * @dev if crowdsale is unsuccessful, investors can claim refunds here
-   */
-  function refund() public whenNotPaused {
-    require(state == SaleState.REFUND);
-    require(registry.getContributionETH(msg.sender) > 0);
-    require(!hasRefunded[msg.sender]);
-
-    uint ethContributed = registry.getContributionETH(msg.sender);
-    if (!msg.sender.send(ethContributed)) {
-      ErrorSendingETH(msg.sender, ethContributed);
-    } else {
-      hasRefunded[msg.sender] = true;
-      Refunded(msg.sender, ethContributed);
     }
   }
 
@@ -428,10 +390,10 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
    */
   function withdrawEth() public onlyOwner {
     require(state == SaleState.ENDED);
-    uint bal = this.balance;
-    hold.transfer(bal);
+    uint bal = address(this).balance;
+    address(hold).transfer(bal);
     hold.setInitialBalance(bal);
-    WithdrawedEthToHold(bal);
+    emit WithdrawedEthToHold(bal);
   }
 
   function newCrowdsale() public onlyOwner {
@@ -447,7 +409,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
 
     statusI.setStatus(BuildingStatus.statusEnum.crowdsale);
     state = SaleState.SALE;
-    CrowdsaleStarted(block.number);
+    emit CrowdsaleStarted(block.number);
   }
 
   // @return true if crowdsale event has ended
@@ -492,7 +454,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     ethRaised += _amount;
     usdRaised += _amusd;
     totalTokens += _tokens;
-    ContributionAddedManual(_contributor, ethRaised, usdRaised, totalTokens, _quote);
+    emit ContributionAddedManual(_contributor, ethRaised, usdRaised, totalTokens, _quote);
 
   }
 
@@ -505,7 +467,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     ethRaised += _amount;
     usdRaised += _amusd;
     totalTokens += _tokens;
-    ContributionAdded(_contributor, ethRaised, usdRaised, totalTokens, _quote);
+    emit ContributionAdded(_contributor, ethRaised, usdRaised, totalTokens, _quote);
 
   }
 
@@ -514,7 +476,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     ethRaised -= registry.getContributionETH(_contributor);
     usdRaised -= registry.getContributionUSD(_contributor);
     totalTokens -= registry.getContributionTokens(_contributor);
-    ContributionRemoved(_contributor, ethRaised, usdRaised, totalTokens);
+    emit ContributionRemoved(_contributor, ethRaised, usdRaised, totalTokens);
   }
 
 }

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import './base/PermissionManager.sol';
 import './base/OraclizeC.sol';
@@ -68,14 +68,14 @@ contract Observer is OraclizeC {
     require(stage <= stages);
     statusI.changeStage(stage);
     hold.changeStage();
-    unlockHold(stage, now);
+    emit unlockHold(stage, now);
   }
 
   function nextStageAndReleaseETH(uint8 stage) public onlyPermitted {
     require(stage <= stages);
     statusI.changeStage(stage);
     hold.changeStageAndReleaseETH();
-    unlockHold(stage, now);
+    emit unlockHold(stage, now);
   }
 
   function __callback(bytes32 myid, string result) public {
@@ -87,10 +87,10 @@ contract Observer is OraclizeC {
   }
 
   function update(uint delay) private {
-    if (oraclize_getPrice("URL") > this.balance) {
+    if (oraclize_getPrice("URL") > address(this).balance) {
       //stop if we don't have enough funds anymore
       state = State.Stopped;
-      LogOraclizeQuery("Oraclize query was NOT sent", this.balance, block.timestamp);
+      emit LogOraclizeQuery("Oraclize query was NOT sent", address(this).balance, block.timestamp);
     } else {
       bytes32 queryId = oraclize_query(delay, "URL", "", gasLimit);
       validIds[queryId] = true;
@@ -135,7 +135,7 @@ contract Observer is OraclizeC {
         state = State.Stopped;
       }
     }
-    updateWork(currentStage, now);
+    emit updateWork(currentStage, now);
   }
 
   function startStage(uint8 index) private returns (bool) {
@@ -143,7 +143,7 @@ contract Observer is OraclizeC {
       address curIndexStageAddr = stagesContract[index];
       if (curIndexStageAddr != 0x0) {
         if (Stage(curIndexStageAddr).start()) {
-          startStageLogAddr(curIndexStageAddr, now);
+          emit startStageLogAddr(curIndexStageAddr, now);
           stagesList[curIndexStageAddr].isWork = true;
           return true;
         }

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import './ERC223/ERC223_interface.sol';
 import './base/PermissionManager.sol';
@@ -105,82 +105,82 @@ contract Object is BuildingStatus {
    */
   function setGBA(uint32 newGBA) public onlyPermitted notCompleted {
     gba = newGBA;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setGLA(uint32 newGLA) public onlyPermitted notCompleted {
     gla = newGLA;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setParking(uint32 newParking) public onlyPermitted notCompleted {
     parking = newParking;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setUnit(unitEnum newUnit) public onlyPermitted notCompleted {
     unit = newUnit;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setDeveloper(string newDeveloper) public onlyPermitted notCompleted {
     developer = newDeveloper;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setLeed(string newLeed) public onlyPermitted notCompleted {
     leed = newLeed;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setLocation(string newLocation) public onlyPermitted notCompleted {
     location = newLocation;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setStartDate(uint newStartDate) public onlyPermitted notCompleted {
     constructionStart = newStartDate;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setEndDate(uint newEndDate) public onlyPermitted notCompleted {
     constructionEnd = newEndDate;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
 
   function setName(string _name) public onlyPermitted notCompleted {
     name = _name;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
   
   function setUntsqm(uint _untsqm) public onlyPermitted notCompleted {
     untsqm = _untsqm;
-    PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
+    emit PropertyChanged(gba, gla, parking, unit, developer, leed, location, constructionStart, constructionEnd);
   }
 
   function setObserver(address _observer) public onlyOwner {
     require(_observer != 0x0);
     observer = _observer;
-    ObserverChanged(_observer);
+    emit ObserverChanged(_observer);
   }
 
   function setToken(address _token) public onlyOwner {
     require(_token != 0x0);
     token = ERC223Interface(_token);
-    TokenChanged(_token);
+    emit TokenChanged(_token);
   }
 
   function setHold(address _hold) public onlyOwner {
     require(_hold != 0x0);
     hold = _hold;
-    HoldChanged(_hold);
+    emit HoldChanged(_hold);
   }
 
   function setCrowdsale(address _crowdsale) public onlyOwner {
     require(_crowdsale != 0x0);
     crowdsale = _crowdsale;
-    CrowdsaleChanged(_crowdsale);
+    emit CrowdsaleChanged(_crowdsale);
   }
 
   function getTotalSupply() public view returns (uint) {
@@ -218,16 +218,16 @@ contract Object is BuildingStatus {
 
     babcde[k++] = _s2[0];
     if (intVal == 0) {
-      assert(this.call(bytes4(keccak256(string(babcde))), strVal));
+      assert(address(this).call(bytes4(keccak256(string(babcde))), strVal));
     } else {
-      assert(this.call(bytes4(keccak256(string(babcde))), intVal));
+      assert(address(this).call(bytes4(keccak256(string(babcde))), intVal));
     }
   }
 
   function completeStatus(string newReport) public onlyOwner notCompleted {
     status = statusEnum.completed;
     report = newReport;
-    Completed(report);
+    emit Completed(report);
   }
 
 

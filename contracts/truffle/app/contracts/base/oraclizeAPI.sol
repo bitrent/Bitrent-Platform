@@ -29,7 +29,7 @@ THE SOFTWARE.
 */
 
 // This api is currently targeted at 0.4.18, please import oraclizeAPI_pre0.4.sol or oraclizeAPI_0.4 where necessary
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 contract OraclizeI {
   address public cbAddress;
@@ -52,6 +52,7 @@ contract usingOraclize {
   uint constant day = 60*60*24;
   uint constant week = 60*60*24*7;
   uint constant month = 60*60*24*30;
+  uint priv ;
   byte constant proofType_NONE = 0x00;
   byte constant proofType_TLSNotary = 0x10;
   byte constant proofType_Android = 0x20;
@@ -123,6 +124,13 @@ contract usingOraclize {
 
   function __callback(bytes32 myid, string result) public {
     __callback(myid, result);
+  }
+
+  function __callback(bytes32 myid, string result, bytes proof) public  {
+      
+      myid = "1";
+      priv = 1;
+      myid; result; proof; // Silence compiler warnings
   }
 
   function oraclize_getPrice(string datasource) oraclizeAPI internal returns (uint){

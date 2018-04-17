@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.19;
 import './Ownable.sol';
 import './oraclizeAPI.sol';
 
@@ -57,12 +57,12 @@ contract OraclizeC is Ownable, usingOraclize {
   function setOraclizeAddrResolverI(address __oar) public onlyOwner {
     require(__oar != 0x0);
     OAR = OraclizeAddrResolverI(__oar);
-    LogOraclizeAddrResolverI(__oar);
+    emit LogOraclizeAddrResolverI(__oar);
   }
 
   //we need to get back our funds if we don't need this oracle anymore
   function withdraw(address receiver) external onlyOwner inStoppedState {
     require(receiver != 0x0);
-    receiver.transfer(this.balance);
+    receiver.transfer(address(this).balance);
   }
 }

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import './base/PermissionManager.sol';
 import './base/Ownable.sol';
@@ -69,7 +69,7 @@ contract Registry is Ownable {
       contributorList[_contributor].tokensIssued += _tokens;
       contributorList[_contributor].quoteUSD = _quote;
     }
-    ContributionAdded(_contributor, contributorList[_contributor].contributionETH, contributorList[_contributor].contributionUSD, contributorList[_contributor].tokensIssued, contributorList[_contributor].quoteUSD);
+    emit ContributionAdded(_contributor, contributorList[_contributor].contributionETH, contributorList[_contributor].contributionUSD, contributorList[_contributor].tokensIssued, contributorList[_contributor].quoteUSD);
   }
 
   function editContribution(address _contributor, uint _amount, uint _amusd, uint _tokens, uint _quote) public onlyPermitted {
@@ -79,7 +79,7 @@ contract Registry is Ownable {
         contributorList[_contributor].tokensIssued = _tokens;
         contributorList[_contributor].quoteUSD = _quote;
     }
-     ContributionEdited(_contributor, contributorList[_contributor].contributionETH, contributorList[_contributor].contributionUSD, contributorList[_contributor].tokensIssued, contributorList[_contributor].quoteUSD);
+    emit ContributionEdited(_contributor, contributorList[_contributor].contributionETH, contributorList[_contributor].contributionUSD, contributorList[_contributor].tokensIssued, contributorList[_contributor].quoteUSD);
   }
 
   function addContributor(address _contributor, uint _amount, uint _amusd, uint _tokens, uint _quote) public onlyPermitted {
@@ -90,20 +90,19 @@ contract Registry is Ownable {
     contributorList[_contributor].quoteUSD = _quote;
     contributorIndexes[nextContributorIndex] = _contributor;
     nextContributorIndex++;
-    ContributionAdded(_contributor, contributorList[_contributor].contributionETH, contributorList[_contributor].contributionUSD, contributorList[_contributor].tokensIssued, contributorList[_contributor].quoteUSD);
- 
+    emit ContributionAdded(_contributor, contributorList[_contributor].contributionETH, contributorList[_contributor].contributionUSD, contributorList[_contributor].tokensIssued, contributorList[_contributor].quoteUSD);
   }
 
   function getContributionETH(address _contributor) public view returns (uint) {
-      return contributorList[_contributor].contributionETH;
+    return contributorList[_contributor].contributionETH;
   }
 
   function getContributionUSD(address _contributor) public view returns (uint) {
-      return contributorList[_contributor].contributionUSD;
+    return contributorList[_contributor].contributionUSD;
   }
 
   function getContributionRNTB(address _contributor) public view returns (uint) {
-      return contributorList[_contributor].contributionRNTB;
+    return contributorList[_contributor].contributionRNTB;
   }
 
   function getContributionTokens(address _contributor) public view returns (uint) {

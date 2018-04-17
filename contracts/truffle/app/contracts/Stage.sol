@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 import './base/OraclizeC.sol';
 /**
  * @author Emil Dudnyk
@@ -33,13 +33,13 @@ contract Stage is OraclizeC {
     require(status == false);
     state = State.Active;
     update(updateInterval);
-    Start(status, now);
+    emit Start(status, now);
     return true;
   }
 
   function stop() public onlyObserver returns(bool) {
     state = State.Stopped;
-    Stop(status, now);
+    emit Stop(status, now);
     return true;
   }
 
@@ -52,12 +52,12 @@ contract Stage is OraclizeC {
     delete validIds[myid];
 
     bool newResult = (keccak256(result) == keccak256("true"));
-    QueryResult(newResult, now);
+    emit QueryResult(newResult, now);
 
     if(newResult) {
       status = true;
       state = State.Stopped;
-      Stop(status, now);
+      emit Stop(status, now);
     }
 
     if (state == State.Active && status == false) {
@@ -67,11 +67,11 @@ contract Stage is OraclizeC {
   }
 
   function update(uint delay) private {
-    if (oraclize_getPrice("URL") > this.balance) {
+    if (oraclize_getPrice("URL") > address(this).balance) {
       //stop if we don't have enough funds anymore
       state = State.Stopped;
-      Stop(status, now);
-      LogOraclizeQuery("Oraclize query was NOT sent", this.balance,block.timestamp);
+      emit Stop(status, now);
+      emit LogOraclizeQuery("Oraclize query was NOT sent", address(this).balance,block.timestamp);
     } else {
       bytes32 queryId = oraclize_query(delay, "URL", url, gasLimit);
       validIds[queryId] = true;

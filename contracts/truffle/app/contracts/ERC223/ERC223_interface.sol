@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 contract ERC223Interface {
   uint public totalSupply;
@@ -10,6 +10,5 @@ contract ERC223Interface {
   function transfer(address to, uint value, bytes data) public returns (bool ok);
   function transfer(address to, uint value, bytes data, string custom_fallback) public returns (bool ok);
 
-  event Transfer(address indexed from, address indexed to, uint value, bytes data);
-  event TransferContract(address indexed from, address indexed to, uint value, bytes data);
+  event Transfer(address indexed from, address indexed to, uint256 value);
 }
