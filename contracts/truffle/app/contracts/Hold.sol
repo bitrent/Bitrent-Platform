@@ -115,28 +115,6 @@ contract Hold is Ownable {
         emit EthReturnedToOwner(owner, balance);
     }
 
-    function refund(uint _numberOfReturns) public onlyOwner {
-        require(_numberOfReturns > 0);
-        address currentParticipantAddress;
-
-        for (uint cnt = 0; cnt < _numberOfReturns; cnt++) {
-            currentParticipantAddress = registry.getContributorByIndex(nextContributorToTransferEth);
-            if (currentParticipantAddress == 0x0) 
-                return;
-
-            if (!hasWithdrawedEth[currentParticipantAddress]) {
-                uint EthAmount = registry.getContributionETH(currentParticipantAddress);
-                EthAmount -=  EthAmount * (percentage / 100 * currentStage);
-
-                currentParticipantAddress.transfer(EthAmount);
-                emit EthRefunded(currentParticipantAddress, EthAmount);
-                hasWithdrawedEth[currentParticipantAddress] = true;
-            }
-            nextContributorToTransferEth += 1;
-        }
-        
-    }  
-
     function() public payable {
 
     }

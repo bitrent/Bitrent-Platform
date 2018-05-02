@@ -19,7 +19,7 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
   ConvertQuote convert;
   Registry registry;
 
-  enum SaleState  {NEW, SALE, ENDED, REFUND}
+  enum SaleState  {NEW, SALE, ENDED}
 
   // minimum goal USD
   uint public softCap;
@@ -60,7 +60,6 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
   uint private nextContributorToTransferTokens;
 
   mapping(address => bool) private hasWithdrawedTokens; //address who got a tokens
-  mapping(address => bool) private hasRefunded; //address who got a tokens
 
   /* Events */
   event CrowdsaleStarted(uint blockNumber);
@@ -72,7 +71,6 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
   event ContributionEdit(address contrib, uint amount, uint amusd, uint tokens, uint ethusdrate);
   event ContributionRemoved(address contrib, uint amount, uint amusd, uint tokens);
   event TokensTransfered(address contributor, uint amount);
-  event Refunded(address ref, uint amount);
   event ErrorSendingETH(address to, uint amount);
   event WithdrawedEthToHold(uint amount);
   event ManualChangeStartDate(uint beforeDate, uint afterDate);
@@ -236,17 +234,10 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
     }
 
     if (now > endDate) {
-      if (usdRaised.add(usd) >= softCap) {
         state = SaleState.ENDED;
         statusI.setStatus(BuildingStatus.statusEnum.preparation_works);
         emit CrowdsaleEnded(block.number);
         return false;
-      } else {
-        state = SaleState.REFUND;
-        statusI.setStatus(BuildingStatus.statusEnum.refund);
-        emit CrowdsaleEnded(block.number);
-        return false;
-      }
     }
     return true;
   }
@@ -300,18 +291,6 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
 
     if (returnAmountETH != 0) {
       _contributor.transfer(returnAmountETH);
-    }
-  }
-
-  /**
-   * @dev It is necessary for a correct change of status in the event of completion of the campaign.
-   * @param _stateChanged if true transfer ETH back
-   */
-  function refundTransaction(bool _stateChanged) internal {
-    if (_stateChanged) {
-      msg.sender.transfer(msg.value);
-    } else{
-      revert();
     }
   }
 
@@ -443,10 +422,6 @@ contract Crowdsale is Pausable, ETHPriceWatcher, ERC223ReceivingContract {
 
   function getWithdrawed(address contrib) public view returns (bool) {
     return hasWithdrawedTokens[contrib];
-  }
-
-  function getRefunded(address contrib) public view returns (bool) {
-    return hasRefunded[contrib];
   }
 
   function addContributor(address _contributor, uint _amount, uint _amusd, uint _tokens, uint _quote) public onlyPermitted {
